@@ -45,6 +45,7 @@ contract SmartContract {
     string[] public shopList;
 	mapping(address => User) private users;
     address[] public reg;
+    address[] public admins_users;
 
 	struct Event{
 		address user;
@@ -246,6 +247,7 @@ contract SmartContract {
 			Roles.administrator,
 			true
 		);
+		admins_users.push(msg.sender);
 		reg.push(msg.sender);
 		users[0x467c2f769E1b96Fd4170c9FD47961822C21C3367] = User("Belfort","Jordan","Ross",
 			keccak256(abi.encodePacked("seller")),
@@ -384,10 +386,10 @@ contract SmartContract {
 		string memory surename;
 		string memory name;
 		string memory middlename;
-		string[] memory admins = new string[](reg.length);
-		for(uint i = 0; i < reg.length; i++){
-			if(users[reg[i]].role == Roles.administrator){
-				(surename, name, middlename, , , , ) = getUserData(reg[i]);
+		string[] memory admins = new string[](admins_users.length);
+		for(uint i = 0; i < admins_users.length; i++){
+			if(users[admins_users[i]].role == Roles.administrator){
+				(surename, name, middlename, , , , ) = getUserData(admins_users[i]);
 				admins[i] = string(abi.encodePacked(surename, " ", name, " ", middlename));
 			}
 		}
