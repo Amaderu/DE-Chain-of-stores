@@ -8,6 +8,7 @@ import configparser
 
 import initialize
 
+
 def create_config(contract_address, bytecode, abi):
     if os.path.exists("configurations.ini"):
         return
@@ -53,32 +54,30 @@ def compile_source_file(file_path):
 
 
 def deploy():
-    compiled_sol = compile_source_file(r'.\SmartContract.sol')
-    contract_name, contract_interface = compiled_sol.popitem()
-
     config_file = configparser.ConfigParser()
     config_file.read("configurations.ini")
-
-    bytecode = contract_interface['bin']
-    abi = contract_interface['abi']
-    w3 = Web3(Web3.HTTPProvider("http://127.0.0.1:7545"))
-    # set pre-funded account as sender
-    w3.eth.default_account = w3.eth.accounts[0]
-    smart_contract = w3.eth.contract(abi=abi, bytecode=bytecode)
-
-    # Submit the transaction that deploys the contract
-    tx_hash = smart_contract.constructor().transact()
-    # Wait for the transaction to be mined, and get the transaction receipt
-    tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+    compiled_sol = compile_source_file(r'.\SmartContract.sol')
+    contract_name, contract_interface = compiled_sol.popitem()
 
     # logger = initialize.initial_logger(config_file["Logger"]["loglevel"], config_file["Logger"]["logfilename"])
     logger = initialize.logger
     logger.info(f'contract_name file is {contract_name}')
     try:
         if not config_file.get("Settings", "contract_address").__eq__(""):
-            logger.info(f'contract successfully connected by: {tx_receipt.contractAddress}')
+            logger.info(f'contract successfully connected by: {config_file["Settings"]["contract_address"]}')
             return
     except configparser.NoSectionError:
+        bytecode = contract_interface['bin']
+        abi = contract_interface['abi']
+        w3 = Web3(Web3.HTTPProvider("http://127.0.0.1:7545"))
+        # set pre-funded account as sender
+        w3.eth.default_account = w3.eth.accounts[0]
+        smart_contract = w3.eth.contract(abi=abi, bytecode=bytecode)
+
+        # Submit the transaction that deploys the contract
+        tx_hash = smart_contract.constructor().transact()
+        # Wait for the transaction to be mined, and get the transaction receipt
+        tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
         create_config(tx_receipt.contractAddress, bytecode, abi)
         logger.info(f'contract_id is {contract_name}')
         logger.info(f'contract successfully deployed by: {tx_receipt.contractAddress}')

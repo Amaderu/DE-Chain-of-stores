@@ -15,65 +15,6 @@ contract_accounts = ''
 if os.path.exists("logfile.log"):
     os.remove("logfile.log")
 
-#
-# def read_config():
-#     global contract
-#     # CREATE OBJECT
-#     config_file = configparser.ConfigParser()
-#     # READ CONFIG FILE
-#     config_file.read("configurations.ini")
-#     # UPDATE A FIELD VALUE
-#     #config_file["Logger"]["LogLevel"] = "Debug"
-#
-#     if (not os.path.exists("configurations.ini")) or config_file["Settings"]["abi"] == [] or config_file["Settings"]["contract_address"].__contains__(""):
-#         deploy()
-#     config_file.read("configurations.ini")
-#     initial_logger(config_file["Logger"]["loglevel"], config_file["Logger"]["logfilename"])
-#     inital_contract(config_file["Settings"]["Blockchain_IP_address"],
-#                     config_file["Settings"]["contract_address"],
-#                     config_file["Settings"]["abi"])
-#
-#     # # PRINT FILE CONTENT
-#     # read_file = open("configurations.ini", "r")
-#     # content = read_file.read()
-#     # print("Content of the config file are:\n")
-#     # print(content)
-#     # read_file.flush()
-#     # read_file.close()
-#
-# def initial_logger(log_level, logfile_path):
-#     global logger
-#     # Gets or creates a logger
-#     logger = logging.getLogger(__name__)
-#     # set log level
-#     logger.setLevel(logging.DEBUG)
-#     # define file handler and set formatter
-#     file_handler = logging.FileHandler('logfile.log')
-#     formatter = logging.Formatter('%(asctime)s : %(levelname)s : %(name)s : %(message)s')
-#     file_handler.setFormatter(formatter)
-#     # add file handler to logger
-#     logger.addHandler(file_handler)
-#
-#
-#
-# def inital_contract(chain_ip_address, contract_address, abi):
-#     global web3
-#     global contract
-#     global logger
-#     web3 = Web3(Web3.HTTPProvider(chain_ip_address, request_kwargs={'timeout': 60}))
-#     logger.info(f'initial web')
-#     contract = web3.eth.contract(address=contract_address, abi=abi)
-#     logger.info(f'initial contract')
-#     web3.eth.defaultAccount = web3.eth.accounts[0]
-#     logger.info(f'set {web3.eth.defaultAccount} as defaultAccount')
-#     logger.info(f'Connected to web: {web3.isConnected()}')
-#     ##вывод содержимого последнего блока
-#     latest_block = web3.eth.get_block('latest')
-#     logger.info(f'last block is: {latest_block}')
-
-
-
-
 
 def print_table(f_name, data_row):
     l = []
@@ -99,6 +40,7 @@ def print_table(f_name, data_row):
 
 def accounts_list(bool_print):
     table = PrettyTable(['address', 'balance'])
+    global contract_accounts
     contract_accounts = web3.eth._get_accounts()
     for address in contract_accounts:
         balance = web3.fromWei(web3.eth.getBalance(address), "ether");
@@ -116,6 +58,8 @@ def accounts_list(bool_print):
 def require_types():
     global web3
     global contract
+
+
 # if isinstance(web3,Web3):
 #  print(f'{web3}')
 # if isinstance(contract,Web3.contract):
@@ -180,23 +124,51 @@ def exec_fun_transact(func_to_transact, *args, **kwargs):
     assert tx_receipt.status == 1
 
 
+def admin_cabinet():
+    print("Список магазинов")
+    for i in range(0, 2):
+        print(i, " - ", contract.functions.shopList(i).call({'from': service.current_user_address}))
+    data = contract.functions.getAdminData(service.current_user_address).call({'from': service.current_user_address})
+    #print(data)
+    print(f"login: {data[0]}")
+    print(f"\nlist of event:")
+    count = 0
+    for i in data[1]:
+        count += 1
+        print(f"|{count} - {i}|")
+    print(f"\nlist of admins:")
+    count = 0
+    for i in data[2]:
+        count += 1
+        print(f"|{count} - {i}|")
+
+    print("\nsellers list:")
+    for shops in data[3]:
+        count = 0
+        print("-",shops[0])
+        for sellers in shops[1]:
+            count += 1
+            print(f"|{count} - {sellers}|")
+
+
 def admin_menu():
     while True:
         os.system('cls')
-        for i in range(0, 2):
-            print(contract.functions.shoplist(i).call({'from': service.current_user_address}))
+
         print("Главное меню")
         print("1 - Узнать баланс")
         print("2 - Повысить пользователя")
         print("3 - Повысить до продавца")
         print("4 - Понизить продавца до покупателя")
+        print("5 - личный кабинет")
+
         print("0 - Close")
 
         user_choice = int(input())
         if user_choice == 1:
-            print(contract.functions.getMeData().call({'from': service.current_user_address})[1])
-            print("Any key to continue")
-            input()
+            print(contract.functions.getMeData().call({'from': service.current_user_address})[4])
+            input("Any key to continue")
+
         elif user_choice == 2:
             print('Enter address: ')
             address = input()
@@ -218,6 +190,9 @@ def admin_menu():
                 contract.functions.DemotionSellerToBuyer(address).transact({'from': service.current_user_address})
             except contract_exception.ContractLogicError as err:
                 print(err)
+        elif user_choice == 5:
+            admin_cabinet()
+            input("Any key to continue")
         elif user_choice == 0:
             break
         else:
@@ -241,6 +216,12 @@ def auth():
     print('Enter password:')
     password = str(input())
 
+    # FIXME заглушка
+    ######
+    address = web3.eth.accounts[0]
+    password = "admin"
+    ######
+
     if address != '' and password != '':
         try:
             auth_user = contract.functions.authInSystem(password).call({'from': address})
@@ -250,18 +231,17 @@ def auth():
                 os.system('cls')
                 service.current_user_address = address
                 service.current_user_data = contract.functions.getMeData().call({'from': address})
-                if service.current_user_data[2] == 0:
+                if service.current_user_data[5] == 0:
                     admin_menu()
-                elif service.current_user_data[2] == 1:
+                elif service.current_user_data[5] == 1:
                     seller_menu()
-                elif service.current_user_data[2] == 2:
+                elif service.current_user_data[5] == 2:
                     buyer_menu()
             else:
                 print('No auth')
                 return
         except contract_exception.ContractLogicError as err:
             print(err)
-
 
 
 print('to terminate program print exit()\n')
@@ -283,12 +263,22 @@ while app_state_running:
     print("1 - Auth")
     print("2 - Reg")
     print("0 - Close")
-    user_choice = int(input())
+    try:
+        user_choice = int(input())
+    except ValueError:
+        # ValueError: invalid literal for int() with base 10: 'ыфв'
+        print(ValueError.args)
+        continue
+
+    # FIXME заглушка
+    ######
+    user_choice = 1
+    ######
 
     if user_choice == 1:
         auth()
     elif user_choice == 2:
-        #reg()
+        # reg()
         pass
     elif user_choice == 0:
         break
@@ -326,7 +316,4 @@ while app_state_running:
     app_state_running = input(
         'Press anu key for continue or if you want to run the program again\n  print \'exit()\'\n') != 'exit()'
 
-
 print('The program now is terminate.')
-
-
